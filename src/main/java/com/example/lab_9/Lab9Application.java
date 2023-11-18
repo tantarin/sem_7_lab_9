@@ -11,8 +11,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @SpringBootApplication
 public class Lab9Application implements CommandLineRunner {
@@ -36,52 +38,19 @@ public class Lab9Application implements CommandLineRunner {
 			// Обработка факультета или института
 			Element facultyElement = getFacultyOrInstituteElement(input, doc);
 			// получаем кафедры
-			Element parentLi = facultyElement.parent();
-			Elements innerLinks = parentLi.select("a.alist");
-
+			Elements innerLinks = facultyElement.parent().select("a.alist");
 			for (Element i : innerLinks) {
-				String href = i.attr("href");
-				System.out.println(href);
-				Document d = Jsoup.connect(BASE_URL + href).get();
-				System.out.println(d.getAllElements());
+				if (!i.attr("href").equals("faculty.php")) {
+					String chairUrl = BASE_URL + i.attr("href");
+					Document chairDocument = Jsoup.connect(chairUrl).get();
+					List<Teacher> teachers = parseTable(chairDocument);
+					writeToCsv(teachers, "output.csv");
+				}
 			}
 			} else {
 
 		}
 	}
-
-	private void parseDepartment(String url) {
-		try {
-			Document doc = Jsoup.connect(url).get();
-			Elements teacherElements = doc.select("table#teachersTable tbody tr");
-
-			//List<Teacher> teachers = new ArrayList<>();
-
-			for (Element teacherElement : teacherElements) {
-				// TODO: Извлеките данные о преподавателе из строки таблицы и добавьте в список teachers
-			}
-
-			//writeCsv(teachers, "output.csv");
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-//	private void writeCsv(List<Teacher> teachers, String fileName) {
-//		try (FileWriter writer = new FileWriter(fileName)) {
-//			writer.write("ФИО, Должность, Контакты\n");
-//
-//			for (Teacher teacher : teachers) {
-//				writer.write(teacher.getName() + "," + teacher.getPosition() + "," + teacher.getContacts() + "\n");
-//			}
-//
-//			System.out.println("CSV файл успешно создан: " + fileName);
-//
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//	}
 
 	Element getFacultyOrInstituteElement(String input, Document doc) {
 		Elements facultyElements = doc.select("li[fac] > a.alist");
@@ -94,5 +63,76 @@ public class Lab9Application implements CommandLineRunner {
 			}
 		}
 		return null;
+	}
+
+	List<Teacher> parseTable(Document document) {
+		List<Teacher> teachers = new ArrayList<>();
+
+		// Находим все строки таблицы, пропуская первую строку с заголовками
+		Elements rows = document.select("table.table_good tr:gt(0)");
+
+		for (Element row : rows) {
+			Elements columns = row.select("td");
+
+			if (columns.size() == 4) {
+				// Извлекаем данные из каждой ячейки
+				int number = Integer.parseInt(columns.get(0).text());
+				String name = columns.get(1).select("a").text();
+				String position = columns.get(2).text();
+				String academicDegree = columns.get(3).text();
+
+				// Создаем объект Teacher и добавляем его в список
+				Teacher teacher = new Teacher(number, name, position, academicDegree);
+				teachers.add(teacher);
+			}
+		}
+
+		return teachers;
+	}
+
+	void writeToCsv(List<Teacher> teachers, String filename) throws IOException {
+		try (FileWriter writer = new FileWriter(filename)) {
+			// Записываем заголовок CSV
+			writer.append("Number,Name,Position,Academic Degree\n");
+
+			// Записываем данные о преподавателях
+			for (Teacher teacher : teachers) {
+				writer.append(String.format("%d,%s,%s,%s\n", teacher.getNumber(), teacher.getName(),
+						teacher.getPosition(), teacher.getAcademicDegree()));
+			}
+
+			System.out.println("CSV файл успешно создан.");
+		}
+	}
+
+	// Класс для представления данных о преподавателе
+	 class Teacher {
+		private final int number;
+		private final String name;
+		private final String position;
+		private final String academicDegree;
+
+		public Teacher(int number, String name, String position, String academicDegree) {
+			this.number = number;
+			this.name = name;
+			this.position = position;
+			this.academicDegree = academicDegree;
+		}
+
+		public int getNumber() {
+			return number;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public String getPosition() {
+			return position;
+		}
+
+		public String getAcademicDegree() {
+			return academicDegree;
+		}
 	}
 }
