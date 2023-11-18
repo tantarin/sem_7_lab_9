@@ -33,6 +33,8 @@ public class Lab9Application implements CommandLineRunner {
 	public void run(String... args) throws IOException {
 		String input = args[0];
 		Document doc = Jsoup.connect(FACULTY_URL).get();
+		FileWriter writer = new FileWriter("output.csv", true);
+		writer.append("Number,Name,Position,Academic Degree\n");
 
 		if (input.startsWith("факультет") || input.startsWith("институт")) {
 			// Обработка факультета или института
@@ -44,7 +46,7 @@ public class Lab9Application implements CommandLineRunner {
 					String chairUrl = BASE_URL + i.attr("href");
 					Document chairDocument = Jsoup.connect(chairUrl).get();
 					List<Teacher> teachers = parseTable(chairDocument);
-					writeToCsv(teachers, "output.csv");
+					appendToCsv(teachers, writer);
 				}
 			}
 			} else {
@@ -67,21 +69,16 @@ public class Lab9Application implements CommandLineRunner {
 
 	List<Teacher> parseTable(Document document) {
 		List<Teacher> teachers = new ArrayList<>();
-
-		// Находим все строки таблицы, пропуская первую строку с заголовками
 		Elements rows = document.select("table.table_good tr:gt(0)");
 
 		for (Element row : rows) {
 			Elements columns = row.select("td");
 
 			if (columns.size() == 4) {
-				// Извлекаем данные из каждой ячейки
 				int number = Integer.parseInt(columns.get(0).text());
 				String name = columns.get(1).select("a").text();
 				String position = columns.get(2).text();
 				String academicDegree = columns.get(3).text();
-
-				// Создаем объект Teacher и добавляем его в список
 				Teacher teacher = new Teacher(number, name, position, academicDegree);
 				teachers.add(teacher);
 			}
@@ -90,22 +87,13 @@ public class Lab9Application implements CommandLineRunner {
 		return teachers;
 	}
 
-	void writeToCsv(List<Teacher> teachers, String filename) throws IOException {
-		try (FileWriter writer = new FileWriter(filename)) {
-			// Записываем заголовок CSV
-			writer.append("Number,Name,Position,Academic Degree\n");
-
-			// Записываем данные о преподавателях
-			for (Teacher teacher : teachers) {
-				writer.append(String.format("%d,%s,%s,%s\n", teacher.getNumber(), teacher.getName(),
-						teacher.getPosition(), teacher.getAcademicDegree()));
-			}
-
-			System.out.println("CSV файл успешно создан.");
+	void appendToCsv(List<Teacher> teachers, FileWriter writer) throws IOException {
+		for (Teacher teacher : teachers) {
+			writer.append(String.format("%d,%s,%s,%s\n", teacher.getNumber(), teacher.getName(),
+					teacher.getPosition(), teacher.getAcademicDegree()));
 		}
 	}
 
-	// Класс для представления данных о преподавателе
 	 class Teacher {
 		private final int number;
 		private final String name;
