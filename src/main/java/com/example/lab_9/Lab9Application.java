@@ -1,5 +1,6 @@
 package com.example.lab_9;
 
+import com.opencsv.CSVWriter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -11,11 +12,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 @SpringBootApplication
 public class Lab9Application implements CommandLineRunner {
 
 	private static Logger LOG = LoggerFactory.getLogger(Lab9Application.class);
+	private static final String BASE_URL = "https://atlas.herzen.spb.ru/";
+	private static final String FACULTY_URL = BASE_URL + "faculty.php";
 
 	public static void main(String[] args) {
 		LOG.info("STARTING THE APPLICATION");
@@ -24,53 +28,71 @@ public class Lab9Application implements CommandLineRunner {
 	}
 
 	@Override
-	public void run(String... args) {
-		if (args.length == 0) {
-			System.out.println("Please provide the name of the faculty, institute, or department as a command-line argument.");
-			return;
-		}
+	public void run(String... args) throws IOException {
+		String input = args[0];
+		Document doc = Jsoup.connect(FACULTY_URL).get();
 
-		String inputQuery = args[0];
-		String facultyUrl = findFacultyUrl(inputQuery);
+		if (input.startsWith("факультет") || input.startsWith("институт")) {
+			// Обработка факультета или института
+			Element facultyElement = getFacultyOrInstituteElement(input, doc);
+			// получаем кафедры
+			Element parentLi = facultyElement.parent();
+			Elements innerLinks = parentLi.select("a.alist");
 
-		if (facultyUrl != null) {
-			scrapeFacultyPage(facultyUrl);
-		} else {
-			System.out.println("Faculty not found for input: " + inputQuery);
+			for (Element i : innerLinks) {
+				String href = i.attr("href");
+				System.out.println(href);
+				Document d = Jsoup.connect(BASE_URL + href).get();
+				System.out.println(d.getAllElements());
+			}
+			} else {
+
 		}
 	}
 
-	private String findFacultyUrl(String query) {
+	private void parseDepartment(String url) {
 		try {
-			Document document = Jsoup.connect("https://atlas.herzen.spb.ru/faculty.php").get();
-			Elements facultyLinks = document.select("a.alist");
+			Document doc = Jsoup.connect(url).get();
+			Elements teacherElements = doc.select("table#teachersTable tbody tr");
 
-			for (Element facultyLink : facultyLinks) {
-				String facultyName = facultyLink.text();
-				if (facultyName.equalsIgnoreCase(query)) {
-					return facultyLink.absUrl("href");
-				}
+			//List<Teacher> teachers = new ArrayList<>();
+
+			for (Element teacherElement : teacherElements) {
+				// TODO: Извлеките данные о преподавателе из строки таблицы и добавьте в список teachers
 			}
+
+			//writeCsv(teachers, "output.csv");
+
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+//	private void writeCsv(List<Teacher> teachers, String fileName) {
+//		try (FileWriter writer = new FileWriter(fileName)) {
+//			writer.write("ФИО, Должность, Контакты\n");
+//
+//			for (Teacher teacher : teachers) {
+//				writer.write(teacher.getName() + "," + teacher.getPosition() + "," + teacher.getContacts() + "\n");
+//			}
+//
+//			System.out.println("CSV файл успешно создан: " + fileName);
+//
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//	}
+
+	Element getFacultyOrInstituteElement(String input, Document doc) {
+		Elements facultyElements = doc.select("li[fac] > a.alist");
+
+		for (Element facultyElement : facultyElements) {
+			String facultyName = facultyElement.text();
+
+			if(input.equals(facultyName)) {
+				return facultyElement;
+			}
 		}
 		return null;
-	}
-
-	private void scrapeFacultyPage(String facultyUrl) {
-		try {
-			Document document = Jsoup.connect(facultyUrl).get();
-			Elements teacherRows = document.select("table tr");
-
-			for (Element teacherRow : teacherRows) {
-				Elements columns = teacherRow.select("td");
-				for (Element column : columns) {
-					System.out.print(column.text() + "\t");
-				}
-				System.out.println();
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 	}
 }
