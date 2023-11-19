@@ -30,25 +30,26 @@ public class Lab9Application implements CommandLineRunner {
 	public void run(String... args) throws IOException {
 		String input = args[0];
 		Document doc = Jsoup.connect(FACULTY_URL).get();
-		FileWriter writer = new FileWriter("output.csv", true);
-		writer.append("Number,Name,Position,Academic Degree\n");
 
-		if (input.startsWith("факультет") || input.startsWith("институт")) {
-			// Обработка факультета или института
-			Element facultyElement = getFacultyOrInstituteElement(input, doc);
-			// получаем кафедры
-			Elements innerLinks = facultyElement.parent().select("a.alist");
-			for (Element i : innerLinks) {
-				if (!i.attr("href").equals("faculty.php")) {
-					String chairUrl = BASE_URL + i.attr("href");
-					Document chairDocument = Jsoup.connect(chairUrl).get();
-					List<Teacher> teachers = parseTable(chairDocument);
-					appendToCsv(teachers, writer);
+		try (FileWriter writer = new FileWriter("output.csv", true)) {
+			writer.append("Number,Name,Position,Academic Degree\n");
+
+			if (input.startsWith("факультет") || input.startsWith("институт")) {
+				// Обработка факультета или института
+				Element facultyElement = getFacultyOrInstituteElement(input, doc);
+				// получаем кафедры
+				Elements innerLinks = facultyElement.parent().select("a.alist");
+				for (Element i : innerLinks) {
+					if (!i.attr("href").equals("faculty.php")) {
+						String chairUrl = BASE_URL + i.attr("href");
+						Document chairDocument = Jsoup.connect(chairUrl).get();
+						List<Teacher> teachers = parseTable(chairDocument);
+						appendToCsv(teachers, writer);
+					}
 				}
-			}
 			} else if (input.startsWith("кафедра")) {
-			    // все кафедры
-			    Elements chairs = doc.select("li[chair]");
+				// все кафедры
+				Elements chairs = doc.select("li[chair]");
 				for (Element chair : chairs) {
 					Element link = chair.selectFirst("a");
 					if (link.text().equals(input)) {
@@ -58,6 +59,7 @@ public class Lab9Application implements CommandLineRunner {
 						appendToCsv(teachers, writer);
 					}
 				}
+			}
 		}
 	}
 
