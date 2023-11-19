@@ -19,14 +19,11 @@ import java.util.List;
 @SpringBootApplication
 public class Lab9Application implements CommandLineRunner {
 
-	private static Logger LOG = LoggerFactory.getLogger(Lab9Application.class);
 	private static final String BASE_URL = "https://atlas.herzen.spb.ru/";
 	private static final String FACULTY_URL = BASE_URL + "faculty.php";
 
 	public static void main(String[] args) {
-		LOG.info("STARTING THE APPLICATION");
 		SpringApplication.run(Lab9Application.class, args);
-		LOG.info("APPLICATION FINISHED");
 	}
 
 	@Override
@@ -49,8 +46,18 @@ public class Lab9Application implements CommandLineRunner {
 					appendToCsv(teachers, writer);
 				}
 			}
-			} else {
-
+			} else if (input.startsWith("кафедра")) {
+			    // все кафедры
+			    Elements chairs = doc.select("li[chair]");
+				for (Element chair : chairs) {
+					Element link = chair.selectFirst("a");
+					if (link.text().equals(input)) {
+						String chairUrl = BASE_URL + link.attr("href");
+						Document chairDocument = Jsoup.connect(chairUrl).get();
+						List<Teacher> teachers = parseTable(chairDocument);
+						appendToCsv(teachers, writer);
+					}
+				}
 		}
 	}
 
